@@ -1,0 +1,71 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Emma-Sq"
+date: "29 March 2016"
+output: html_document
+---
+
+#Preprocessing
+
+## Read in training data
+
+The first task before generating any models to predict the classe of the testing set is to read in the training data.
+
+```{r}
+trainingdata<-read.csv('pml-training.csv')
+```
+
+## Subset training data
+
+In order to validate the model before applying to the test set the training data should be split into two subsets, one to train the model and one to validate. 80% of the original training set has been selected to train the model and the remaining 20% will be used to validate.
+
+```{r}
+set.seed(1000)
+library(caret)
+inTrain<-createDataPartition(y=trainingdata$classe,p=0.8,list=FALSE)
+training<-trainingdata[inTrain,]
+validation<-trainingdata[-inTrain,]
+```
+
+## Filtering columns
+
+Before training a model columns which have little variation and descriptive columns should be filtered out of the dataset.
+
+
+```{r}
+a<-nearZeroVar(training)
+training<-training[,-a]
+cntlength<-sapply(training,function(x){sum(!(is.na(x)|x==""))})
+nullcol<-names(cntlength[cntlength<0.6*length(training$classe)])
+descriptcol <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2","cvtd_timestamp", "new_window", "num_window")
+excludecols <- c(descriptcol, nullcol)
+training<-training[,!names(training)%in% excludecols]
+```
+
+## Training the model
+
+The random forest method has been selected for building the model to predict the classe variable. This is because the outcome of the model is a categorical variable whilst the random forest method is highly accurate. Through trial and error it has been established that 50 trees is a suitable number for ensuring a suitable level of accuracy for prediction. The training of the model is below.
+
+```{r}
+library('randomForest')
+modFit<-train(classe~.,data=training,method='rf',ntree=50)
+```
+
+## Validating the model
+
+Now that the model has been built it can be validated. The validation data set can be used to compare the outcome of the prediction model with the actual classe. The confusion matrix is below.
+
+```{r}
+validationPred <- predict(modFit, validation)
+print(confusionMatrix(validationPred, validation$classe))
+```
+
+##Applying the model to the test set
+
+Now that the model has been built and validated it can be applied to the test set. The result of which is below
+
+```{r}
+testing<-read.csv('pml-testing.csv')
+testpred<-predict(modFit,testing)
+print(testpred)
+```
